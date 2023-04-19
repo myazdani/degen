@@ -38,7 +38,7 @@ def main():
     args = parse_args()
     random.seed(0)
     nlp = spacy.load("en_core_web_sm", disable=['parser', 'tagger', 'ner'])
-    nlp.add_pipe(nlp.create_pipe('sentencizer'))
+    nlp.add_pipe("sentencizer")
 
     all_sentences = []
     with open(args.file, "r") as f_in:
