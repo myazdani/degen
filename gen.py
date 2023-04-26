@@ -68,7 +68,7 @@ def load_dataset(dataset_path, batch_size, device, bs=False):
 
     return dataset
 
-def decode(model, batch_size, max_len, sep, device, temp=None, k=None, p=None, greedy=None, m=None, init=None):
+def decode(model, batch_size, max_len, sep, device, temp=None, k=None, p=None, greedy=None, m=None, init=None, token_priors=None, prior_scale=None):
     """ Main decoding function, beam search is in a separate function """
     if init is None:
         context = torch.full((batch_size, 1), sep, dtype=torch.long, device=device)
@@ -103,6 +103,8 @@ def decode(model, batch_size, max_len, sep, device, temp=None, k=None, p=None, g
                 nu_logits[b, :] = logits[b, idx, :]
             logits = nu_logits
             del nu_logits
+        if token_priors is not None:
+            logits = logits + prior_scale*token_priors
         probs = F.softmax(logits, dim=-1)
         logprobs = F.log_softmax(logits, dim=-1)
 
@@ -358,6 +360,8 @@ def main():
                         help="file to write output to")
     parser.add_argument("--context_path", default=None, type=str,
                         help="file with jsonl contexts")
+    parser.add_argument("--prior_path", default=None, type=str,
+                        help="file with prior scores for tokens")                        
     parser.add_argument('--cache_path', type=str, default=None)
     parser.add_argument('--model_name', type=str, default='gpt2-large',
                         help='pretrained model name')
@@ -372,6 +376,8 @@ def main():
                         help='k for top-k sampling')
     parser.add_argument('-p', type=float, default=None,
                         help='p for Nucleus (top-p) sampling')
+    parser.add_argument('-s', type=int, default=None,
+                        help='scaling factor for prior')                        
     parser.add_argument('-m', type=float, default=None,
                         help='mass of original dist to interpolate')
     parser.add_argument('-w', type=int, default=None,
@@ -446,6 +452,9 @@ def main():
     else:
         dataset = [ None for _ in range(args.n // args.batch_size) ]
 
+    if args.prior_path is not None:
+        token_priors = torch.load(args.prior_path)
+
     model.eval()
     outputs = []
     writer = open(args.output_path, "w")
@@ -455,7 +464,8 @@ def main():
                 if args.w is None:
                     output = decode(model, args.batch_size, max_length, SEP, device, 
                                 temp=args.t, k=args.k, p=args.p, greedy=args.greedy,
-                                m=args.m, init=batch)
+                                m=args.m, init=batch, token_priors=token_priors, 
+                                prior_scale=args.s)
                 else:
                     if args.gumbel:
                         output = gumbel_sbs_decode(model, batch, args.w, max_length, SEP, device, args.batch_size)
