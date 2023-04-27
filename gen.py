@@ -376,7 +376,7 @@ def main():
                         help='k for top-k sampling')
     parser.add_argument('-p', type=float, default=None,
                         help='p for Nucleus (top-p) sampling')
-    parser.add_argument('-s', type=int, default=None,
+    parser.add_argument('-s', type=float, default=None,
                         help='scaling factor for prior')                        
     parser.add_argument('-m', type=float, default=None,
                         help='mass of original dist to interpolate')
